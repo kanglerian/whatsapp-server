@@ -25,7 +25,7 @@ const client = new Client({
     clientId: 'client'
   }),
   puppeteer: {
-    headless: true
+	args: ['--no-sandbox', '--disable-setuid-sandbox'],
   }
 });
 
@@ -36,7 +36,8 @@ client.once('ready', () => {
 client.on('qr', (qr) => {
   qrcode.toDataURL(qr, (error, url) => {
     io.emit('qrcode', url);
-  })
+  });
+	console.log('qrcode');
 });
 
 client.on('message', (message) => {
