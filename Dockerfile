@@ -1,5 +1,5 @@
 # Dockerfile
-FROM node:14
+FROM node:20-alpine
 
 WORKDIR /app
 COPY . .
