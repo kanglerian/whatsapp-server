@@ -12,4 +12,4 @@ ARG PORT
 ENV PORT $PORT
 
 # Command to run the application
-CMD ["node", "app.js"]
+CMD ["node", "server.js"]
