@@ -1,0 +1,13 @@
+version: "3.7"
+services:
+  web:
+    container_name: gateway_container
+    image: kanglerian/api-gateway-lp3i:<version>
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PORT=3000 # Atur port di sini sesuai kebutuhan
+    ports:
+      - "${PORT}:${PORT}" # Atur port yang di-`expose` dengan menggunakan environment variable
+    restart: unless-stopped

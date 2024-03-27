@@ -1,8 +1,9 @@
 require('dotenv').config();
-const { HOST_CLIENT, PORT, CLIENT } = process.env;
+const { PORT, CLIENT } = process.env;
 const sqlite3 = require('sqlite3').verbose();
 const express = require('express');
 const qrcode = require('qrcode');
+const axios = require('axios');
 const http = require('http');
 const path = require('path');
 const cors = require('cors');
@@ -16,11 +17,27 @@ const { phoneNumberFormatter, apiHistoryDatabase } = require('./helpers/formatte
 const dbPath = path.join(__dirname, 'database.db');
 const exists = fs.existsSync(dbPath);
 
+const server = http.createServer(app);
+
+const io = new Server(server);
+
+const client = new Client({
+  restartOnAuthFail: true,
+  authStrategy: new NoAuth(),
+  puppeteer: {
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  }
+});
+
 const db = new sqlite3.Database(dbPath, (error) => {
   if (error) {
     console.error('Error opening database:', error.message);
   } else {
-    console.log('Database connected.');
+    io.on('connection', () => {
+      let text = 'Database Connected.';
+      io.emit('logging', text);
+      console.log(text);
+    })
     server.listen(PORT, () => {
       console.log(`Server berjalan di http://localhost:${PORT}`);
     });
@@ -35,124 +52,150 @@ if (!exists) {
 db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'", (error, row) => {
   if (error) {
     console.error(`Error checking table existence: ${error.message}`);
+  } else if (!row) {
+    db.run('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, identity VARCHAR(30), code TEXT, phone VARCHAR(30) DEFAULT NULL, qrcode TEXT, status BOOLEAN DEFAULT 0)', (error) => {
+      if (error) {
+        console.error(`Error creating table: ${error.message}`);
+      } else {
+        console.log('Table users created successfully.');
+        db.run('INSERT INTO users (identity) VALUES ("00001")', (error) => {
+          if (error) {
+            console.error(`Error insert users: ${error.message}`);
+          } else {
+            let text = 'Berhasil membuat pengguna.';
+            io.emit('logging', text);
+            console.log(text);
+          }
+        });
+      }
+    });
   } else {
-    if (!row) {
-      db.run('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, identity VARCHAR(30), code TEXT, phone VARCHAR(30) DEFAULT NULL, qrcode TEXT, status BOOLEAN DEFAULT 0)', (error) => {
-        if (error) {
-          console.error(`Error creating table: ${error.message}`);
-        } else {
-          console.log('Table users created successfully.');
-          db.run('INSERT INTO users (identity) VALUES ("00001")', (error) => {
-            if (error) {
-              console.error(`Error insert users: ${error.message}`);
-            } else {
-              console.log('Insert users created successfully.');
-            }
-          });
-        }
-      });
-    } else {
-      db.run(`UPDATE users SET status = 0, qrcode = NULL`, (error) => {
-        if (error) {
-          console.error(`Error updating status: ${error.message}`);
-        } else {
-          console.log('Status updated for all users.');
-        }
-      });
-    }
+    db.run(`UPDATE users SET status = 0, qrcode = NULL`, (error) => {
+      if (error) {
+        console.error(`Error updating status: ${error.message}`);
+      } else {
+        let text = 'Berhasil update pengguna.';
+        io.emit('logging', text);
+        console.log(text);
+      }
+    });
   }
 });
-
-const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: [`${HOST_CLIENT}`],
-    methods: ["GET", "POST"]
-  }
-});
-
-const client = new Client({
-  restartOnAuthFail: true,
-  authStrategy: new NoAuth(),
-  puppeteer: {
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  }
-});
-
 
 let numbers = [];
 let image;
-let titleMessage = '';
+let pmb;
+let identity;
+let reqMessage;
+let titleMessage;
 let nameFile = '';
 let typeFile = '';
 let stopFlag = false;
 
-io.emit('signout', true);
-
 client.on('ready', () => {
-  const phone = client.info.wid.user;
-  db.run(`UPDATE users SET phone = '${phone}', status = 1 WHERE identity = '00001'`, (error) => {
-    if (error) {
-      console.log(`Error update user: ${error.message}`);
-    } else {
-      io.emit('ready', true);
-      console.log(`Client ${phone} is ready!`);
-    }
-  });
+  try {
+    const phone = client.info.wid.user;
+    db.run(`UPDATE users SET phone = '${phone}', status = 1 WHERE identity = '00001'`, (error) => {
+      if (error) {
+        console.log(`Error update user: ${error.message}`);
+      } else {
+        let info = `Client ${phone} sudah berjalan!`;
+        io.emit('ready', true);
+        io.emit('logging', info);
+        console.log(info);
+      }
+    });
+  } catch (error) {
+    io.emit('logging', error);
+    console.log(error);
+  }
 });
+
+client.on('changed_state', (data) => {
+  try {
+    io.emit('logging', data);
+    console.log(data);
+  } catch (error) {
+    io.emit('logging', error);
+    console.log(error);
+  }
+})
 
 client.on('qr', (qr) => {
-  qrcode.toDataURL(qr, (error, url) => {
-    if (error) {
-      console.error(`Error generating QR code: ${error.message}`);
-    } else {
-      db.run(`UPDATE users SET qrcode = "${url}" WHERE identity = '00001'`, (error) => {
-        if (error) {
-          console.log(`Error update user: ${error.message}`);
-        } else {
-          io.emit('qrcode', true);
-          io.emit('qrcodeval', url);
-          console.log(`QRcode generated.`);
-        }
-      });
-    }
-  })
+  try {
+    qrcode.toDataURL(qr, (error, url) => {
+      if (error) {
+        console.error(`Error generating QR code: ${error.message}`);
+      } else {
+        db.run(`UPDATE users SET qrcode = "${url}" WHERE identity = '00001'`, (error) => {
+          if (error) {
+            console.log(`Error update user: ${error.message}`);
+          } else {
+            io.emit('qrcode', true);
+            io.emit('qrcodeval', url);
+            let text = 'QR Code tersedia.'
+            io.emit('logging', text);
+            console.log(text);
+          }
+        });
+      }
+    })
+  } catch (error) {
+    io.emit('logging', error);
+    console.log(error);
+  }
 });
 
-client.on('message', message => {
-  let pesan = message.body;
-  console.log(pesan);
-  let messageAuto = pesan.replace(/['";]/g, '').toLowerCase();
-  db.all(`SELECT * FROM autoreply WHERE trigger == "${messageAuto}" LIMIT 1`, (error, rows) => {
-    if (error) {
-      console.log(`Error get autoreply: ${error.message}`);
-    } else {
-      let data = rows;
-      if (data.length > 0) {
-        message.reply(data[0].message)
+client.on('message', (message) => {
+  try {
+    let pesan = message.body;
+    console.log(`-------\nFrom: ${message._data.notifyName}\nMessage: ${message.body}\n-------\n\n`);
+    let messageAuto = pesan.replace(/['";]/g, '').toLowerCase();
+    db.all(`SELECT * FROM autoreply WHERE trigger == "${messageAuto}" LIMIT 1`, (error, rows) => {
+      if (error) {
+        console.log(`Error get autoreply: ${error.message}`);
+      } else {
+        let data = rows;
+        if (data.length > 0) {
+          message.reply(data[0].message)
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    io.emit('logging', error);
+    console.log(error);
+  }
 });
 
 client.on('loading_screen', (percent) => {
-  io.emit('loading', percent);
-  if (percent == 100) {
-    io.emit('qrcode', false);
+  try {
+    io.emit('loading', percent);
+    if (percent == 100) {
+      io.emit('qrcode', false);
+    }
+  } catch (error) {
+    io.emit('logging', error);
+    console.log(error);
   }
 });
 
 client.on('disconnected', () => {
-  db.run(`UPDATE users SET status = 0, qrcode = NULL`, (error) => {
-    if (error) {
-      console.error(`Error updating status: ${error.message}`);
-    } else {
-      console.log('Status updated for all users.');
-    }
-  });
-  io.emit('signout', true);
-  client.initialize();
+  try {
+    db.run(`UPDATE users SET status = 0, qrcode = NULL`, (error) => {
+      if (error) {
+        console.error(`Error updating status: ${error.message}`);
+      } else {
+        let info = 'Status updated for all users.';
+        console.log(info);
+        io.emit('logging', info);
+      }
+    });
+    io.emit('signout', true);
+    client.initialize();
+  } catch (error) {
+    io.emit('logging', error);
+    console.log(error);
+  }
 });
 
 app.use(cors());
@@ -169,81 +212,101 @@ app.get('/', (req, res) => {
 });
 
 app.post('/send', (req, res) => {
-  const state = client.getState();
-  const statePromise = new Promise((resolve, reject) => {
-    resolve(state);
-  })
-  statePromise.then(async (value) => {
+  const statePromise = Promise.resolve(client.getState());
+  statePromise.then((value) => {
     if (value === 'CONNECTED') {
-      image = null;
-      nameFile = '';
-      typeFile = '';
-      titleMessage = '';
-      reqMessage = '';
-      identity = '';
-      pmb = '';
-      numbers = [];
-      let contacts = req.body.upload0;
-      identity += req.body.identity;
-      pmb += req.body.pmb;
-      titleMessage += req.body.titleMessage;
-      reqMessage += req.body.message;
-      image = req.body.upload1;
-      if (req.body.upload1 != null) {
-        nameFile += req.body.namefile;
-        typeFile += req.body.type;
-      }
-      let contactLength = contacts.split("\n").length;
-      for (let i = 0; i < contactLength; i++) {
-        let item = contacts.split("\n")[i];
-        let contact = item.split(",");
-        if (contact.length >= 2) {
-          let check = contact;
-          if (check[1].length >= 10) {
-            let contactString = JSON.stringify(Object.assign({}, contact));
-            let contactObject = JSON.parse(contactString);
-            numbers.push(contactObject);
-          } else {
-            check[1] = '0000000000';
-            let contactString = JSON.stringify(Object.assign({}, contact));
-            let contactObject = JSON.parse(contactString);
-            numbers.push(contactObject);
-          }
-        } else if (contact.length == 1) {
-          let check = contact;
-          if (check[0].length > 0) {
-            check.push('0000000000');
-            let contactString = JSON.stringify(Object.assign({}, check));
-            let contactObject = JSON.parse(contactString);
-            numbers.push(contactObject);
-          }
-        } else {
-          let check = ['undefined', '0000000000'];
-          let contactString = JSON.stringify(Object.assign({}, check));
-          let contactObject = JSON.parse(contactString);
-          numbers.push(contactObject);
-        }
-      }
-
-      stopFlag = false;
-      startLoop(reqMessage, titleMessage, identity, pmb);
-      let info = `
-        <p class="text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-3 py-1 text-white text-sm">
-          <i class="fa-solid fa-circle-info"></i> Pengiriman dimulai!
-        </p>`
-      io.emit('info', info)
+      resetVariables();
+      extractDataFromRequestBody(req.body);
+      processContactList(req.body.upload0);
+      console.log(numbers);
+      startSendingProcess();
+      emitInfoMessage();
     } else {
-      let info = `
-        <p class="text-center bg-red-500 hover:bg-red-600 rounded-lg mb-3 px-3 py-1 text-white text-sm">
-          <i class="fa-solid fa-circle-info"></i> Ada masalah pengiriman.
-        </p>`
-      io.emit('info', info)
+      emitErrorMessage();
     }
+  }).catch((error) => {
+    emitErrorMessage();
+    io.emit('logging', error);
+    console.log(error);
   })
-    .catch((error) => {
-      console.log(error);
-    })
 });
+
+const resetVariables = () => {
+  image = null;
+  pmb = '';
+  identity = '';
+  reqMessage = '';
+  titleMessage = '';
+  nameFile = '';
+  typeFile = '';
+  numbers = [];
+}
+
+const extractDataFromRequestBody = (body) => {
+  pmb = body.pmb;
+  identity = body.identity;
+  reqMessage = body.message;
+  titleMessage = body.titleMessage;
+  image = body.upload1;
+  if (body.upload1 != null) {
+    nameFile += body.namefile;
+    typeFile += body.type;
+  }
+}
+
+const processContactList = (contactList) => {
+  contactList.split("\n").forEach((item) => {
+    let contact = item.split(",");
+    if (contact.length >= 2) {
+      let check = contact;
+      if (check[1].length >= 10) {
+        let contactString = JSON.stringify(Object.assign({}, contact));
+        let contactObject = JSON.parse(contactString);
+        numbers.push(contactObject);
+      } else {
+        check[1] = '0000000000';
+        let contactString = JSON.stringify(Object.assign({}, contact));
+        let contactObject = JSON.parse(contactString);
+        numbers.push(contactObject);
+      }
+    } else if (contact.length == 1 && contact[0].length > 0) {
+      let check = contact;
+      if (check[0].length > 0) {
+        check.push('0000000000');
+        let contactString = JSON.stringify(Object.assign({}, check));
+        let contactObject = JSON.parse(contactString);
+        numbers.push(contactObject);
+      }
+    } else {
+      let check = ['undefined', '0000000000'];
+      let contactString = JSON.stringify(Object.assign({}, check));
+      let contactObject = JSON.parse(contactString);
+      numbers.push(contactObject);
+    }
+  });
+}
+
+const startSendingProcess = () => {
+  stopFlag = false;
+  startLoop(reqMessage, titleMessage, identity, pmb);
+}
+
+const emitInfoMessage = () => {
+  let info = `
+      <p class="w-1/2 text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-5 py-1 text-white text-xs">
+          <i class="fa-solid fa-circle-info"></i> Pengiriman dimulai!
+      </p>`;
+  io.emit('info', info);
+}
+
+const emitErrorMessage = (error) => {
+  let message = error ? error.message : 'Ada masalah pengiriman.';
+  let info = `
+      <p class="w-1/2 text-center bg-red-500 hover:bg-red-600 rounded-lg mb-3 px-5 py-1 text-white text-xs">
+          <i class="fa-solid fa-circle-info"></i> ${message}
+      </p>`;
+  io.emit('info', info);
+}
 
 const checkRegisteredNumber = async function (phone) {
   const isRegistered = await client.isRegisteredUser(phone);
@@ -258,7 +321,6 @@ const sendProcess = async (i, messageBucket, titleMessage, identity, pmb) => {
   let subject = Object.assign(numbers[i]);
   let source = Object.values(subject);
   let object = {};
-
   object[`&fullname`] = source[0];
   object[`&firstname`] = source[0].split(" ")[0];
   object[`&whatsapp`] = source[1];
@@ -289,10 +351,14 @@ const sendProcess = async (i, messageBucket, titleMessage, identity, pmb) => {
       result: message
     })
       .then((res) => {
-        console.log('Success set history');
+        let text = 'Chat terbaru sudah tersimpan.'
+        io.emit('logging', text);
+        console.log(text);
       })
       .catch((error) => {
-        console.log('Failed set history');
+        let text = 'Gagal menyimpan chat.'
+        io.emit('logging', text);
+        console.log(text);
       })
   }
 
@@ -301,17 +367,23 @@ const sendProcess = async (i, messageBucket, titleMessage, identity, pmb) => {
       client.sendMessage(phone, media, {
         caption: message
       });
-      console.log('Send media berhasil!');
+      let text = 'Mengirim media berhasil!';
+      io.emit('logging', text);
+      io.emit('send', true);
+      console.log(text);
     } else {
       client.sendMessage(phone, message);
-      console.log('Send message berhasil!');
+      let text = 'Mengirim pesan berhasil!';
+      io.emit('logging', text);
+      io.emit('send', true);
+      console.log(text);
     }
     db.run(`INSERT INTO contacts (name, phone, status) VALUES ("${numbers[i]['0']}", "${numbers[i]['1']}", 1)`, (error) => {
       if (error) {
         console.error(`Error insert contact: ${error.message}`);
       } else {
         let info = `
-        <p class="text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-3 py-1 text-white text-sm">
+        <p class="w-1/2 text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-5 py-1 text-white text-xs">
           <i class="fa-solid fa-circle-check"></i> ${numbers[i]['0']}  ${numbers[i]['1']}
         </p>`
         io.emit('info', info)
@@ -324,7 +396,7 @@ const sendProcess = async (i, messageBucket, titleMessage, identity, pmb) => {
         console.error(`Error insert contact: ${error.message}`);
       } else {
         let info = `
-        <p class="text-center bg-red-500 hover:bg-red-600 rounded-lg mb-3 px-3 py-1 text-white text-sm">
+        <p class="w-1/2 text-center bg-red-500 hover:bg-red-600 rounded-lg mb-3 px-5 py-1 text-white text-xs">
           <i class="fa-solid fa-circle-xmark"></i> ${numbers[i]['0']}  ${numbers[i]['1']}
         </p>`
         io.emit('info', info)
@@ -339,11 +411,11 @@ async function startLoop(message, titleMessage, identity, pmb) {
     if (stopFlag) {
       break;
     }
-    await delay(1700);
+    await delay(2000);
     sendProcess(i, message, titleMessage, identity, pmb);
   }
   let info = `
-    <p class="text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-3 py-1 text-white text-sm">
+    <p class="w-1/2 text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-5 py-1 text-white text-xs">
     <i class="fa-solid fa-clipboard-check"></i> Pengiriman selesai!
     </p>`
   setTimeout(() => {
@@ -357,12 +429,15 @@ function delay(ms) {
 }
 
 io.on('connection', (socket) => {
-  console.log('a user connected');
+
+  let text = 'Client tersambung!'
+  io.emit('logging', text);
 
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    let text = 'Client terputus!'
+    io.emit('logging', text);
   });
-  
+
   socket.emit('reset');
 
   socket.on('getUsers', () => {
@@ -372,7 +447,8 @@ io.on('connection', (socket) => {
       } else {
         let data = rows[0];
         io.emit('users', data);
-        console.log('Success get users.');
+        io.emit('logging', 'Berhasil mengambil data pengguna.')
+        console.log('Berhasil mengambil data pengguna.');
       }
     });
   });
@@ -382,7 +458,9 @@ io.on('connection', (socket) => {
       if (error) {
         console.error(`Error update user: ${error.message}`);
       } else {
-        console.log(`Client identity is updated!`);
+        let text = 'Identitas Client sudah terupdate!';
+        io.emit('logging', text)
+        console.log(text);
       }
     });
     db.all(`SELECT * FROM users LIMIT 1`, (error, rows) => {
@@ -391,24 +469,32 @@ io.on('connection', (socket) => {
       } else {
         let data = rows[0];
         io.emit('users', data);
-        console.log('Success get user.');
+        let text = 'Berhasil mengambil pengguna.';
+        io.emit('logging', text)
+        console.log(text);
       }
     });
   });
 
   socket.on('stop', () => {
     stopFlag = true;
-    console.log('stop send.');
+    let text = 'Berhenti pengiriman!';
+    io.emit('logging', text)
+    console.log(text);
   });
 
   socket.on('delete', () => {
     db.exec(`DELETE FROM contacts`);
-    console.log('Delete history');
+    let text = 'Menghapus riwayat.';
+    io.emit('logging', text);
+    console.log(text);
   });
 
   socket.on('deleteauto', (data) => {
     db.exec(`DELETE FROM autoreply WHERE id = "${data}"`);
-    console.log('Delete autoreply');
+    let text = 'Menghapus Auto Reply.';
+    io.emit('logging', text);
+    console.log(text);
   });
 
   socket.on('getHistory', () => {
@@ -417,7 +503,9 @@ io.on('connection', (socket) => {
         console.log(`Error get users: ${error.message}`);
       };
       io.emit('histories', rows)
-      console.log('success get histories.');
+      let text = 'Berhasil mengambil riwayat.';
+      io.emit('logging', text);
+      console.log(text);
     });
   });
 
@@ -427,7 +515,9 @@ io.on('connection', (socket) => {
         console.log(`Error get autoreply: ${error.message}`);
       } else {
         io.emit('bots', rows)
-        console.log('success get bots');
+        let text = 'Berhasil mengambil BOT.';
+        io.emit('logging', text);
+        console.log(text);
       };
     });
   });
@@ -441,11 +531,13 @@ io.on('connection', (socket) => {
         console.log(`Error insert autoreply: ${error.message}`);
       } else {
         let info = `
-        <p class="text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-3 py-1 text-white text-sm">
+        <p class="w-1/2 text-center bg-emerald-500 hover:bg-emerald-600 rounded-lg mb-3 px-5 py-1 text-white text-xs">
         <i class="fa-solid fa-circle-check"></i> ${data.trigger} telah ditambahkan!
         </p>`
         io.emit('info', info)
-        console.log('success save autoreply');
+        let text = 'Berhasil menyimpan Auto Reply.';
+        io.emit('logging', text);
+        console.log(text);
       }
     });
   });
