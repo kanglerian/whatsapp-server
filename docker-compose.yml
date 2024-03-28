@@ -1,13 +1,13 @@
 version: "3.7"
 services:
   web:
-    container_name: gateway_container
-    image: kanglerian/api-gateway-lp3i:<version>
+    container_name: kanglerian_wablast_container
+    image: kanglerian/kanglerian_wasender:0.0.2
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        - PORT=3000 # Atur port di sini sesuai kebutuhan
+        - PORT=7002 # Sesuaikan port dengan kebutuhan Anda
     ports:
-      - "${PORT}:${PORT}" # Atur port yang di-`expose` dengan menggunakan environment variable
+      - "${PORT}:7002" # Expose port yang sesuai
     restart: unless-stopped
