@@ -1,5 +1,4 @@
 require('dotenv').config();
-const { PORT, CLIENT } = process.env;
 const sqlite3 = require('sqlite3').verbose();
 const express = require('express');
 const qrcode = require('qrcode');
@@ -9,6 +8,8 @@ const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
 const app = express();
+
+const port = process.env.PORT;
 
 const { Server } = require('socket.io');
 const { Client, NoAuth, MessageMedia } = require('whatsapp-web.js')
@@ -38,8 +39,8 @@ const db = new sqlite3.Database(dbPath, (error) => {
       io.emit('logging', text);
       console.log(text);
     })
-    server.listen(PORT, () => {
-      console.log(`Server berjalan di http://localhost:${PORT}`);
+    server.listen(port, () => {
+      console.log(`Server berjalan di http://localhost:${port}`);
     });
   }
 });
@@ -208,7 +209,7 @@ app.use(express.urlencoded({
 }));
 
 app.get('/', (req, res) => {
-  res.send(`Server Whatsapp Sender: ${CLIENT}`);
+  res.send(`Server Whatsapp Sender: @kanglerian`);
 });
 
 app.post('/send', (req, res) => {
