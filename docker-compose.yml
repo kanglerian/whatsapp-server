@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - PORT=3035
+        - PORT=9001
     ports:
-      - "${PORT}:3035"
+      - "${PORT}:9001"
     restart: unless-stopped
