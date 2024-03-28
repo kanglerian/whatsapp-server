@@ -21,12 +21,8 @@ RUN npm install
 # Salin kode aplikasi ke direktori kerja
 COPY . .
 
-# Mengambil nilai PORT dari environment variable yang didefinisikan di docker-compose.yml
-ARG PORT
-ENV PORT $PORT
-
-# Expose port 3000 untuk aplikasi
-EXPOSE $PORT
+# Expose port 4001 untuk aplikasi
+EXPOSE 4001
 
 # Menjalankan aplikasi saat container dijalankan
 CMD ["npm", "start"]
