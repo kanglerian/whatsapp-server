@@ -1,7 +1,7 @@
 # Menggunakan image Node.js versi terbaru sebagai base image
 FROM node:latest
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     gconf-service libgbm-dev libasound2 libatk1.0-0 libc6 libcairo2 libcups2 \
     libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 \
     libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 \
@@ -21,8 +21,7 @@ RUN npm install
 # Salin kode aplikasi ke direktori kerja
 COPY . .
 
-# Expose port 4001 untuk aplikasi
-EXPOSE 4001
+EXPOSE 9001
 
 # Menjalankan aplikasi saat container dijalankan
 CMD ["npm", "start"]
