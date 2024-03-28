@@ -1,5 +1,5 @@
 # Menggunakan image Node.js versi terbaru sebagai base image
-FROM node:20-alpine
+FROM node:latest
 
 RUN apt update && apt install -y \
     gconf-service libgbm-dev libasound2 libatk1.0-0 libc6 libcairo2 libcups2 \
@@ -8,7 +8,7 @@ RUN apt update && apt install -y \
     libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 \
     libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates \
     fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget
-    
+
 # Buat direktori aplikasi di dalam container
 WORKDIR /app
 
