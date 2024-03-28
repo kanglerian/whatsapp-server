@@ -1,13 +1,12 @@
 version: "3.7"
 services:
   web:
-    container_name: kanglerian_wablast_container
-    image: kanglerian/kanglerian_wasender:0.0.2
+    container_name: kanglerian_wasender_container
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        - PORT=7002 # Sesuaikan port dengan kebutuhan Anda
+        - PORT=7002
     ports:
-      - "${PORT}:7002" # Expose port yang sesuai
+      - "${PORT}:7002"
     restart: unless-stopped
