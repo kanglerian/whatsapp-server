@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   web:
-    container_name: kanglerian_wasender_container
+    container_name: benny_wasender_container
     build:
       context: .
       dockerfile: Dockerfile
