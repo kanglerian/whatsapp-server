@@ -9,7 +9,7 @@ const cors = require('cors');
 const fs = require('fs');
 const app = express();
 
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
 
 const { Server } = require('socket.io');
 const { Client, NoAuth, MessageMedia } = require('whatsapp-web.js')
@@ -417,7 +417,7 @@ async function startLoop(message, titleMessage, identity, pmb) {
     if (stopFlag) {
       break;
     }
-    await delay(2000);
+    await delay(1200);
     sendProcess(i, message, titleMessage, identity, pmb);
   }
   let info = `
