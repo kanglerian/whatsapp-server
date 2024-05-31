@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      image: benny_wasender
     ports:
       - "9001:9001"
     restart: unless-stopped
