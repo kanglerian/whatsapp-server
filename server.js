@@ -12,7 +12,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 const { Server } = require('socket.io');
-const { Client, NoAuth, MessageMedia } = require('whatsapp-web.js')
+const { Client, MessageMedia, NoAuth } = require('whatsapp-web.js')
 const { phoneNumberFormatter, apiHistoryDatabase } = require('./helpers/formatter');
 
 const dbPath = path.join(__dirname, 'database.db');
@@ -31,7 +31,7 @@ const client = new Client({
   webVersionCache: {
     type: "remote",
     remotePath:
-      "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1014580163-alpha.html",
+      "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
   },
 });
 
