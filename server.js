@@ -26,13 +26,8 @@ const client = new Client({
   restartOnAuthFail: true,
   authStrategy: new NoAuth(),
   puppeteer: {
-    // args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    headless: false
-  },
-  webVersionCache: {
-    type: "remote",
-    remotePath:
-      "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1014576526-alpha.html",
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // headless: false
   },
 });
 
