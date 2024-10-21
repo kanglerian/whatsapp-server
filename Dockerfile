@@ -1,5 +1,5 @@
 # Menggunakan image Node.js versi terbaru sebagai base image
-FROM node:18
+FROM node:20
 
 RUN apt-get update && apt-get install -y \
     gconf-service libgbm-dev libasound2 libatk1.0-0 libc6 libcairo2 libcups2 \
